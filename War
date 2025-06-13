@@ -1,0 +1,185 @@
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.LinkedList;
+import java.util.concurrent.TimeUnit; // For pausing
+
+// Card Class (can be a nested static class or separate file)
+class Card {
+    private int value;
+    private String name;
+    private String suit;
+
+    public Card(int value, String name, String suit) {
+        this.value = value;
+        this.name = name;
+        this.suit = suit;
+    }
+
+    public int getValue() {
+        return value;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String toString() {
+        return name;
+    }
+}
+
+public class Main {
+
+    private LinkedList<Card> player1Hand;
+    private LinkedList<Card> player2Hand;
+
+    public Main() {
+        List<Card> deck = createAndShuffleDeck();
+        player1Hand = new LinkedList<>();
+        player2Hand = new LinkedList<>();
+
+        // Deal cards
+        for (int i = 0; i < deck.size(); i++) {
+            if (i % 2 == 0) {
+                player1Hand.add(deck.get(i));
+            } else {
+                player2Hand.add(deck.get(i));
+            }
+        }
+    }
+
+    private List<Card> createAndShuffleDeck() {
+        List<Card> deck = new ArrayList<>();
+        String[] suits = {"Hearts", "Diamonds", "Clubs", "Spades"};
+        String[] rankNames = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace"};
+
+        for (String suit : suits) {
+            for (int i = 0; i < rankNames.length; i++) {
+                int value = i + 2; // Default for 2-10
+                if (rankNames[i].equals("Jack")) value = 11;
+                if (rankNames[i].equals("Queen")) value = 12;
+                if (rankNames[i].equals("King")) value = 13;
+                if (rankNames[i].equals("Ace")) value = 14;
+
+                deck.add(new Card(value, rankNames[i], suit));
+            }
+        }
+        Collections.shuffle(deck);
+        return deck;
+    }
+
+    private void pause(int seconds) {
+        try {
+            TimeUnit.SECONDS.sleep(seconds);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Game pause interrupted.");
+        }
+    }
+
+    public void startGame() {
+        System.out.println("Player Ones Hand: " + player1Hand);
+        System.out.println("Player Twos Hand: " + player2Hand);
+        pause(5); // Initial pause
+
+        while (!player1Hand.isEmpty() && !player2Hand.isEmpty()) {
+            playRound();
+            // Only pause if game isn't over after the round
+            if (!player1Hand.isEmpty() && !player2Hand.isEmpty()) {
+                pause(3);
+            }
+        }
+
+        // Determine winner
+        if (player1Hand.isEmpty()) {
+            System.out.println("\nPlayer 2 wins the game! Player 1 ran out of cards.");
+        } else {
+            System.out.println("\nPlayer 1 wins the game! Player 2 ran out of cards.");
+        }
+    }
+
+    private void playRound() {
+        if (player1Hand.isEmpty() || player2Hand.isEmpty()) {
+            return; // Game over, main loop will catch this
+        }
+
+        System.out.println("\nPlayer 1 has " + player1Hand.size() + " card(s) | Player 2 has " + player2Hand.size() + " card(s)");
+
+        Card p1Card = player1Hand.removeFirst();
+        Card p2Card = player2Hand.removeFirst();
+
+        System.out.println("Player 1 plays a " + p1Card.getName() + " | Player 2 plays a " + p2Card.getName());
+
+        List<Card> playedCards = new ArrayList<>();
+        playedCards.add(p1Card);
+        playedCards.add(p2Card);
+
+        if (p1Card.getValue() > p2Card.getValue()) {
+            player1Hand.addAll(playedCards);
+            System.out.println("Player 1 wins the round and " + playedCards.size() + " cards");
+        } else if (p2Card.getValue() > p1Card.getValue()) {
+            player2Hand.addAll(playedCards);
+            System.out.println("Player 2 wins the round and " + playedCards.size() + " cards");
+        } else { // It's a tie - WAR!
+            System.out.println("War has been enacted");
+            initiateWar(playedCards);
+            Collections.shuffle(player1Hand);
+            Collections.shuffle(player2Hand);
+        }
+    }
+
+    private void initiateWar(List<Card> warPile) {
+        // Player needs at least 4 cards for a full war (1 face up, 3 face down)
+        // If a player doesn't have enough cards for a full war, they lose the war
+        // and all their remaining cards are taken by the opponent.
+        if (player1Hand.size() < 4) {
+            System.out.println("Player 1 does not have enough cards for war. Player 2 wins the war!");
+            player2Hand.addAll(warPile);
+            player2Hand.addAll(player1Hand); // Player 2 gets all of Player 1's remaining cards
+            player1Hand.clear(); // Player 1 is out of cards
+            return;
+        }
+        if (player2Hand.size() < 4) {
+            System.out.println("Player 2 does not have enough cards for war. Player 1 wins the war!");
+            player1Hand.addAll(warPile);
+            player1Hand.addAll(player2Hand); // Player 1 gets all of Player 2's remaining cards
+            player2Hand.clear(); // Player 2 is out of cards
+            return;
+        }
+
+        // Add 3 face-down cards from each player to the war pile
+        for (int i = 0; i < 3; i++) {
+            warPile.add(player1Hand.removeFirst());
+            warPile.add(player2Hand.removeFirst());
+        }
+
+        // Play the "battle" cards for the war
+        System.out.println("\nPlayer 1 has " + player1Hand.size() + " card(s) | Player 2 has " + player2Hand.size() + " card(s)");
+        Card p1WarCard = player1Hand.removeFirst();
+        Card p2WarCard = player2Hand.removeFirst();
+
+        warPile.add(p1WarCard);
+        warPile.add(p2WarCard);
+
+        System.out.println("Player 1 plays a " + p1WarCard.getName() + " | Player 2 plays a " + p2WarCard.getName());
+
+        if (p1WarCard.getValue() > p2WarCard.getValue()) {
+            player1Hand.addAll(warPile);
+            System.out.println("Player 1 wins the round and " + warPile.size() + " cards");
+        } else if (p2WarCard.getValue() > p1WarCard.getValue()) {
+            player2Hand.addAll(warPile);
+            System.out.println("Player 2 wins the round and " + warPile.size() + " cards");
+        } else {
+            // Another tie! Initiate another war with the current war pile
+            System.out.println("Another tie! War continues...");
+            initiateWar(warPile); // Recursive call for continued war
+        }
+    }
+
+    public static void main(String[] args) {
+        Main game = new Main();
+        game.startGame();
+    }
+}
